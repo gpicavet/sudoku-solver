@@ -1,0 +1,49 @@
+<html>
+  <head>
+    <script src="solver.js"></script>
+  </head>
+  <body>
+
+    <textarea id="board" cols="60">
+    </textarea>
+    <br>
+    <textarea id="message" cols="60">
+    </textarea>
+    <br>
+    <button onclick="solve()">SOLVE</button>
+
+    <script>
+      var board=      [
+              [".",".","9","7","4","8",".",".","."],
+              ["7",".",".",".",".",".",".",".","."],
+              [".","2",".","1",".","9",".",".","."],
+              [".",".","7",".",".",".","2","4","."],
+              [".","6","4",".","1",".","5","9","."],
+              [".","9","8",".",".",".","3",".","."],
+              [".",".",".","8",".","3",".","2","."],
+              [".",".",".",".",".",".",".",".","6"],
+              [".",".",".","2","7","5","9",".","."]
+            ];
+      setTextArea(document.querySelector("#board"), board);
+
+      function setTextArea(o,b) {
+        o.value = JSON.stringify(b, null,' ').replace(/\",\n/g,'\",');
+        o.style.height = "1px";
+        o.style.height = (25+o.scrollHeight)+"px";
+      }
+
+      function solve() {
+        var t = document.querySelector("#board");
+        var b = JSON.parse(t.value);
+        try {
+          b = new SudokuSolver().solve(b);
+          setTextArea(t,b);
+          document.querySelector("#message").value= "Resolved!";
+        } catch (e) {
+          document.querySelector("#message").value = "Invalid board!";
+        }
+      }
+    </script>
+
+  </body>
+</html>
