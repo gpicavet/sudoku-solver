@@ -1,5 +1,7 @@
 'use strict';
 
+const digits = "0123456789ABCDEF";
+
 class SudokuSolver {
 
     constructor() {
@@ -29,7 +31,7 @@ class SudokuSolver {
 
         //find minimum moves and do backtracking
         var moveSize;
-        for (moveSize = 2; moveSize <= 9; moveSize++) {
+        for (moveSize = 2; moveSize <= state.size; moveSize++) {
             move = state.findMove(moveSize);
             if (move != null)
                 break;
@@ -55,43 +57,55 @@ class SudokuSolver {
 
 class State {
     constructor() {
+        //2D array of int. Each int bit corresponds to an allowed number for this cell
         this.allowedNumbers = null;
         this.board = null;
+        this.size = 0;
+        this.sizeBlock = 0;
     }
 
     init (board) {
+        this.size = board.length;
+        this.sizeBlock = parseInt(""+Math.sqrt(this.size));
         this.board = board;
         this.allowedNumbers = [];
 
-        for (var i = 0; i < board.length; i++) {
+        var allbits=0;
+        for (var i = 1; i <= this.size; i++) {
+          allbits |= 1<<i;
+        }
+
+        for (var i = 0; i < this.size; i++) {
             this.allowedNumbers[i] = [];
-            for (var j = 0; j < board.length; j++) {
-                this.allowedNumbers[i][j] = 0b1111111110;
+            for (var j = 0; j < this.size; j++) {
+                this.allowedNumbers[i][j] = allbits;
             }
         }
 
-        for (var i = 0; i < board.length; i++) {
-            for (var j = 0; j < board.length; j++) {
+        for (var i = 0; i < this.size; i++) {
+            for (var j = 0; j < this.size; j++) {
                 var c = board[i][j];
-                if(c !==".")
-                  this.setNumber(i, j, parseInt(c));
+                if(c !== ".")
+                  this.setNumber(i, j, digits.indexOf(c));
             }
         }
     }
 
     initFromState (state) {
+        this.size = state.size;
+        this.sizeBlock = parseInt(""+Math.sqrt(this.size));
         this.board = [];
         this.allowedNumbers = [];
 
-        for (var i = 0; i < state.board.length; i++) {
+        for (var i = 0; i < this.size; i++) {
           this.board[i] = [];
-            for (var j = 0; j < state.board.length; j++) {
+            for (var j = 0; j < this.size; j++) {
                 this.board[i][j] = state.board[i][j];
             }
         }
-        for (var i = 0; i < state.board.length; i++) {
+        for (var i = 0; i < this.size; i++) {
             this.allowedNumbers[i] = [];
-            for (var j = 0; j < state.board.length; j++) {
+            for (var j = 0; j < this.size; j++) {
                 this.allowedNumbers[i][j] = state.allowedNumbers[i][j];
             }
         }
@@ -111,26 +125,26 @@ class State {
 
         this.allowedNumbers[i][j] &= setmask;
 
-        var oi = ((i / 3 | 0)) * 3;
-        var oj = ((j / 3 | 0)) * 3;
-        for (var bi = oi; bi < oi + 3; bi++) {
-            for (var bj = oj; bj < oj + 3; bj++) {
+        var oi = ((i / this.sizeBlock | 0)) * this.sizeBlock;
+        var oj = ((j / this.sizeBlock | 0)) * this.sizeBlock;
+        for (var bi = oi; bi < oi + this.sizeBlock; bi++) {
+            for (var bj = oj; bj < oj + this.sizeBlock; bj++) {
                 if (bi !== i || bj !== j) {
                     this.apply(bi, bj, unsetmask);
                 }
             }
         }
-        for (var jj = 0; jj < this.allowedNumbers.length; jj++) {
+        for (var jj = 0; jj < this.size; jj++) {
             if (jj !== j) {
                 this.apply(i, jj, unsetmask);
             }
         }
-        for (var ii = 0; ii < this.allowedNumbers.length; ii++) {
+        for (var ii = 0; ii < this.size; ii++) {
             if (ii !== i) {
                 this.apply(ii, j, unsetmask);
             }
         }
-        this.board[i][j] = "" + v;
+        this.board[i][j] = ""+digits.charAt(v);
     };
 
     /**
@@ -141,13 +155,13 @@ class State {
      */
     findMove (number) {
         var res = null;
-        for (var i = 0; i < this.board.length; i++) {
-            for (var j = 0; j < this.board.length; j++) {
+        for (var i = 0; i < this.size; i++) {
+            for (var j = 0; j < this.size; j++) {
                 if (this.board[i][j] === ".") {
                     var count = this.bitCount(this.allowedNumbers[i][j]);
                     if (count === number) {
                         res = {i:i, j:j, values:[]};
-                        for (var n = 1; n <= 9; n++) {
+                        for (var n = 1; n <= this.size; n++) {
                             if ((this.allowedNumbers[i][j] & (1 << n)) > 0)
                                 res.values.push(n);
                         }
@@ -165,3 +179,5 @@ class State {
     }
 
 }
+
+module.exports= SudokuSolver;
