@@ -1,0 +1,23 @@
+{
+  "name": "suduko",
+  "version": "1.0.0",
+  "description": "",
+  "main": "solver.js",
+  "scripts": {
+    "test": "tape *.test.js"
+  },
+  "devDependencies": {
+    "is-equal": "^1.5.5",
+    "tape": "^4.8.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gpicavet/sudoku-solver.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gpicavet/sudoku-solver/issues"
+  },
+  "homepage": "https://github.com/gpicavet/sudoku-solver#readme"
+}
