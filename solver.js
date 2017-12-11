@@ -2,10 +2,20 @@
 
 class SudokuSolver {
 
+    constructor() {
+      this.stats = {};
+    }
+
+    /**
+     * @param board a 2D array of of strings
+     */
     solve (board) {
+        this.stats={tests:0, backtracks:0, time:Date.now()};
         var state = new State();
         state.init(board);
-        return this._solve(state).board;
+        state = this._solve(state);
+        this.stats.time = Date.now()-this.stats.time;
+        return state.board;
     }
 
     _solve (state) {
@@ -14,6 +24,7 @@ class SudokuSolver {
         while ((move != null)) {
             state.setNumber(move.i, move.j, move.values[0]);
             move = state.findMove(1);
+            this.stats.tests++;
         }
 
         //find minimum moves and do backtracking
@@ -29,6 +40,7 @@ class SudokuSolver {
                 newState.initFromState(state);
                 newState.setNumber(move.i, move.j, moveVal);
                 try {
+                    this.stats.backtracks++;
                     return this._solve(newState);
                 }
                 catch (e) {
