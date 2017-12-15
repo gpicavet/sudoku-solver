@@ -1,36 +1,45 @@
 'use strict';
 
-const digits = "0123456789ABCDEF";
+//digits up to alphadoku 16x16 !
+const digits = " 123456789ABCDEFG";
 
 class SudokuSolver {
 
     constructor() {
-      this.stats = {};
+      this.stats = {}; // some stats
     }
 
     /**
-     * @param board a 2D array of of strings
+     * find the first solution of this board. Throws an "invalid board "exception if board can not be solved.
+     * @param board a 2D array of strings
      */
     solve (board) {
         this.stats={tests:0, backtracks:0, time:Date.now()};
-        var state = new State();
+
+        let state = new State();
         state.init(board);
         state = this._solve(state);
+
         this.stats.time = Date.now()-this.stats.time;
+
         return state.board;
     }
 
+    /**
+     * recursive solve from this state
+     * @param state 
+     */
     _solve (state) {
-        //do all single moves first (no backtracking)
-        var move = state.findMove(1);
-        while ((move != null)) {
-            state.setNumber(move.i, move.j, move.values[0]);
+        //first do all single moves we can
+        let move = state.findMove(1);
+        while (move != null) {
+            state.setDigit(move.i, move.j, move.values[0]);
             move = state.findMove(1);
             this.stats.tests++;
         }
 
-        //find minimum moves and do backtracking
-        var moveSize;
+        //if there's no more single move, find the move with minimum possibilities and do backtracking
+        let moveSize;
         for (moveSize = 2; moveSize <= state.size; moveSize++) {
             move = state.findMove(moveSize);
             if (move != null)
@@ -38,26 +47,30 @@ class SudokuSolver {
         }
         if (move != null) {
             for (var moveVal of move.values) {
-                var newState = new State();
+                let newState = new State();
                 newState.initFromState(state);
-                newState.setNumber(move.i, move.j, moveVal);
+                newState.setDigit(move.i, move.j, moveVal);
                 try {
-                    this.stats.backtracks++;
+                    //try to solve from this new state
                     return this._solve(newState);
                 }
                 catch (e) {
+                    this.stats.backtracks++;
+                    //error ? continue
                 }
             }
+            //this board can not be solved, we move backward.
             throw "invalid board";
+        } else {
+            return state;
         }
-        return state;
     }
 }
 
 
 class State {
     constructor() {
-        //2D array of int. Each int bit corresponds to an allowed number for this cell
+        //2D array of integers, whose bits correspond to cell allowed numbers
         this.allowedNumbers = null;
         this.board = null;
         this.size = 0;
@@ -70,23 +83,23 @@ class State {
         this.board = board;
         this.allowedNumbers = [];
 
-        var allbits=0;
-        for (var i = 1; i <= this.size; i++) {
+        let allbits=0;
+        for (let i = 1; i <= this.size; i++) {
           allbits |= 1<<i;
         }
 
-        for (var i = 0; i < this.size; i++) {
+        for (let i = 0; i < this.size; i++) {
             this.allowedNumbers[i] = [];
-            for (var j = 0; j < this.size; j++) {
+            for (let j = 0; j < this.size; j++) {
                 this.allowedNumbers[i][j] = allbits;
             }
         }
 
-        for (var i = 0; i < this.size; i++) {
-            for (var j = 0; j < this.size; j++) {
-                var c = board[i][j];
+        for (let i = 0; i < this.size; i++) {
+            for (let j = 0; j < this.size; j++) {
+                let c = board[i][j];
                 if(c !== ".")
-                  this.setNumber(i, j, digits.indexOf(c));
+                  this.setDigit(i, j, digits.indexOf(c));
             }
         }
     }
@@ -112,18 +125,25 @@ class State {
     };
 
     apply (i, j, mask) {
+      //apply mask
       this.allowedNumbers[i][j] &= mask;
       //if allowedNumbers is zero, a constraint has been violated
         if (this.allowedNumbers[i][j] === 0)
           throw "invalid board";
     }
 
-    setNumber (i, j, v) {
+    /**
+     * set a digit a ith row and jth column, unless there's a constraint violation
+     */
+    setDigit (i, j, digit) {
         //constraint propagation
-        var setmask = 1 << v;
+
+        //set the bit for this digit
+        var setmask = 1 << digit;
+        //unset bit mask
         var unsetmask = ~setmask;
 
-        this.allowedNumbers[i][j] &= setmask;
+        this.allowedNumbers[i][j] = setmask;
 
         var oi = ((i / this.sizeBlock | 0)) * this.sizeBlock;
         var oj = ((j / this.sizeBlock | 0)) * this.sizeBlock;
@@ -144,7 +164,7 @@ class State {
                 this.apply(ii, j, unsetmask);
             }
         }
-        this.board[i][j] = ""+digits.charAt(v);
+        this.board[i][j] = ""+digits.charAt(digit);
     };
 
     /**
@@ -173,6 +193,9 @@ class State {
         return res;
     }
 
+    /**
+     * bit count of this int
+     */
     bitCount (u) {
       var uCount = u - ((u >> 1) & 0o33333333333) - ((u >> 2) & 0o11111111111);
       return ((uCount + (uCount >> 3)) & 0o30707070707) % 63;
