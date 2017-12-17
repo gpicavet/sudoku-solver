@@ -30,6 +30,10 @@ class SudokuSolver {
      * @param state 
      */
     _solve (state) {
+        if(this.stats.backtracks>10000) {
+            throw "backtrack overflow";        
+        }
+
         //first do all single moves we can
         let move = state.findMove(1);
         while (move != null) {
@@ -80,8 +84,10 @@ class State {
     init (board) {
         this.size = board.length;
         this.sizeBlock = parseInt(""+Math.sqrt(this.size));
-        this.board = board;
+        this.board = [];
         this.allowedNumbers = [];
+
+        this.copy(this.board, board);
 
         let allbits=0;
         for (let i = 1; i <= this.size; i++) {
@@ -89,17 +95,18 @@ class State {
         }
 
         for (let i = 0; i < this.size; i++) {
-            this.allowedNumbers[i] = [];
+            let row = [];
             for (let j = 0; j < this.size; j++) {
-                this.allowedNumbers[i][j] = allbits;
+                row.push(allbits);
             }
+            this.allowedNumbers.push(row);
         }
 
         for (let i = 0; i < this.size; i++) {
             for (let j = 0; j < this.size; j++) {
                 let c = board[i][j];
                 if(c !== ".")
-                  this.setDigit(i, j, digits.indexOf(c));
+                  this.setDigit(i, j, digits.indexOf(c.toUpperCase()));
             }
         }
     }
@@ -110,19 +117,10 @@ class State {
         this.board = [];
         this.allowedNumbers = [];
 
-        for (var i = 0; i < this.size; i++) {
-          this.board[i] = [];
-            for (var j = 0; j < this.size; j++) {
-                this.board[i][j] = state.board[i][j];
-            }
-        }
-        for (var i = 0; i < this.size; i++) {
-            this.allowedNumbers[i] = [];
-            for (var j = 0; j < this.size; j++) {
-                this.allowedNumbers[i][j] = state.allowedNumbers[i][j];
-            }
-        }
-    };
+        this.copy(this.board, state.board);
+        this.copy(this.allowedNumbers, state.allowedNumbers);
+
+    }
 
     apply (i, j, mask) {
       //apply mask
@@ -145,8 +143,8 @@ class State {
 
         this.allowedNumbers[i][j] = setmask;
 
-        var oi = ((i / this.sizeBlock | 0)) * this.sizeBlock;
-        var oj = ((j / this.sizeBlock | 0)) * this.sizeBlock;
+        var oi = i - (i % this.sizeBlock);
+        var oj = j - (j % this.sizeBlock);
         for (var bi = oi; bi < oi + this.sizeBlock; bi++) {
             for (var bj = oj; bj < oj + this.sizeBlock; bj++) {
                 if (bi !== i || bj !== j) {
@@ -201,6 +199,15 @@ class State {
       return ((uCount + (uCount >> 3)) & 0o30707070707) % 63;
     }
 
+    copy (d, s) {
+        for (var i = 0; i < s.length; i++) {
+            let row = [];
+            for (var j = 0; j < s[i].length; j++) {
+                row.push(s[i][j]);
+            }
+            d.push(row);
+        }
+    }
 }
 
 module.exports= SudokuSolver;
