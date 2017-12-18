@@ -10,8 +10,8 @@ class SudokuSolver {
     }
 
     /**
-     * find the first solution of this board. Throws an "invalid board "exception if board can not be solved.
-     * @param board a 2D array of strings
+     * find the first solution of this board or throws an "invalid board "exception if it can not be solved.
+     * @param board a 2D array of cells containing string digits for clues and "." for empty cells. 
      */
     solve (board) {
         this.stats={tests:0, backtracks:0, time:Date.now()};
@@ -30,40 +30,43 @@ class SudokuSolver {
      * @param state 
      */
     _solve (state) {
-        if(this.stats.backtracks>10000) {
+        if(this.stats.backtracks>10000) {//avoid infinite loop!
             throw "backtrack overflow";        
         }
 
-        //first do all single moves we can
-        let move = state.findMove(1);
-        while (move != null) {
-            state.setDigit(move.i, move.j, move.values[0]);
-            move = state.findMove(1);
+        //while there's a cell having one possible digit, set it.
+        let cell = state.findEmptyCell(1);
+        while (cell != null) {
+            state.setCell(cell.i, cell.j, cell.values[0]);
+            cell = state.findEmptyCell(1);
             this.stats.tests++;
         }
 
-        //if there's no more single move, find the move with minimum possibilities and do backtracking
-        let moveSize;
-        for (moveSize = 2; moveSize <= state.size; moveSize++) {
-            move = state.findMove(moveSize);
-            if (move != null)
+        //there's no single choice anymore, so we find a cell with minimum possibilities (starting with 2!) and explore each
+        //one of them is a solution others will conflict. 
+        //If a conflict is detected we have to go back to the initial state.
+        let cellChoices;
+        for (cellChoices = 2; cellChoices <= state.size; cellChoices++) {
+            cell = state.findEmptyCell(cellChoices);
+            if (cell != null)
                 break;
         }
-        if (move != null) {
-            for (var moveVal of move.values) {
+        if (cell != null) {
+            for (var cellVal of cell.values) {
                 let newState = new State();
                 newState.initFromState(state);
-                newState.setDigit(move.i, move.j, moveVal);
+                newState.setCell(cell.i, cell.j, cellVal);
                 try {
                     //try to solve from this new state
+                    //it only returns when a solution has been fund!
                     return this._solve(newState);
                 }
                 catch (e) {
                     this.stats.backtracks++;
-                    //error ? continue
+                    //error => continue exploring
                 }
             }
-            //this board can not be solved, we move backward.
+            //all possibilities are in conflict state, so the parent state is invalid.
             throw "invalid board";
         } else {
             return state;
@@ -74,8 +77,8 @@ class SudokuSolver {
 
 class State {
     constructor() {
-        //2D array of integers, whose bits correspond to cell allowed numbers
-        this.allowedNumbers = null;
+        //2D array of cells allowed digits. Each cell allowed digit corresponds to a bit. Ex: If 9 and 5 are allowed : "0..01000100000"
+        this.allowedDigits = null;
         this.board = null;
         this.size = 0;
         this.sizeBlock = 0;
@@ -85,7 +88,7 @@ class State {
         this.size = board.length;
         this.sizeBlock = parseInt(""+Math.sqrt(this.size));
         this.board = [];
-        this.allowedNumbers = [];
+        this.allowedDigits = [];
 
         this.copy(this.board, board);
 
@@ -99,14 +102,14 @@ class State {
             for (let j = 0; j < this.size; j++) {
                 row.push(allbits);
             }
-            this.allowedNumbers.push(row);
+            this.allowedDigits.push(row);
         }
 
         for (let i = 0; i < this.size; i++) {
             for (let j = 0; j < this.size; j++) {
                 let c = board[i][j];
                 if(c !== ".")
-                  this.setDigit(i, j, digits.indexOf(c.toUpperCase()));
+                  this.setCell(i, j, digits.indexOf(c.toUpperCase()));
             }
         }
     }
@@ -115,34 +118,28 @@ class State {
         this.size = state.size;
         this.sizeBlock = parseInt(""+Math.sqrt(this.size));
         this.board = [];
-        this.allowedNumbers = [];
+        this.allowedDigits = [];
 
         this.copy(this.board, state.board);
-        this.copy(this.allowedNumbers, state.allowedNumbers);
+        this.copy(this.allowedDigits, state.allowedDigits);
 
-    }
-
-    apply (i, j, mask) {
-      //apply mask
-      this.allowedNumbers[i][j] &= mask;
-      //if allowedNumbers is zero, a constraint has been violated
-        if (this.allowedNumbers[i][j] === 0)
-          throw "invalid board";
     }
 
     /**
-     * set a digit a ith row and jth column, unless there's a constraint violation
+     * set a cell digit at i-th row and j-th column, unless there's a constraint violation
      */
-    setDigit (i, j, digit) {
-        //constraint propagation
+    setCell (i, j, digit) {
+        //do constraint propagation
 
         //set the bit for this digit
         var setmask = 1 << digit;
         //unset bit mask
         var unsetmask = ~setmask;
 
-        this.allowedNumbers[i][j] = setmask;
+        //this cell only has one allowed digit
+        this.allowedDigits[i][j] = setmask;
 
+        //unset allowed digits of others cell
         var oi = i - (i % this.sizeBlock);
         var oj = j - (j % this.sizeBlock);
         for (var bi = oi; bi < oi + this.sizeBlock; bi++) {
@@ -165,22 +162,32 @@ class State {
         this.board[i][j] = ""+digits.charAt(digit);
     };
 
+    apply (i, j, mask) {
+      //apply mask
+      this.allowedDigits[i][j] &= mask;
+      //if allowedDigits is zero, a constraint has been violated
+        if (this.allowedDigits[i][j] === 0)
+          throw "invalid board";
+    }
+
     /**
      * find out an empty cell on board where allowed numbers count is equals to the argument
      *
      * @return {Array} array whose first element is row, second is column, third is allowed numbers count, next are the allowed numbers themselves (max 9)
-     * @param {number} number
+     * @param {possibilities} number
      */
-    findMove (number) {
+    findEmptyCell (possibilities) {
         var res = null;
         for (var i = 0; i < this.size; i++) {
             for (var j = 0; j < this.size; j++) {
                 if (this.board[i][j] === ".") {
-                    var count = this.bitCount(this.allowedNumbers[i][j]);
-                    if (count === number) {
+
+                    var count = this.bitCount(this.allowedDigits[i][j]);
+                    if (count === possibilities) {
+                        //found one    
                         res = {i:i, j:j, values:[]};
                         for (var n = 1; n <= this.size; n++) {
-                            if ((this.allowedNumbers[i][j] & (1 << n)) > 0)
+                            if ((this.allowedDigits[i][j] & (1 << n)) > 0)
                                 res.values.push(n);
                         }
                         return res;
@@ -192,7 +199,7 @@ class State {
     }
 
     /**
-     * bit count of this int
+     * trick to count bits of an int
      */
     bitCount (u) {
       var uCount = u - ((u >> 1) & 0o33333333333) - ((u >> 2) & 0o11111111111);
